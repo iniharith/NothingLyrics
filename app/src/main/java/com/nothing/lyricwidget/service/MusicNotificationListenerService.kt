@@ -142,7 +142,6 @@ class MusicNotificationListenerService : NotificationListenerService() {
 
         if (title.isNotBlank()) {
             LyricRepository.updateTrack(applicationContext, title, artist, album, duration, isPlaying, position, albumArt)
-            AutoMediaService.publish(controller)
         }
     }
 }

@@ -18,7 +18,8 @@ object LyricRepository {
     var isPlaying: Boolean = false
         private set
     var lyricLines: List<LyricLine> = emptyList()
-        private set
+    var onTrackChanged: ((track: String, artist: String, album: String) -> Unit)? = null
+    var onLyricChanged: ((lyric: String) -> Unit)? = null
     var currentLyricIndex: Int = -1
         private set
 
@@ -51,6 +52,7 @@ object LyricRepository {
         if (trackChanged) {
             lyricLines = emptyList()
             currentLyricIndex = -1
+            onTrackChanged?.invoke(track, artist, album)
 
             val cachedLyrics = context.getSharedPreferences(CACHE_NAME, Context.MODE_PRIVATE)
                 .getString(cacheKey(track, artist), null)
@@ -124,8 +126,7 @@ object LyricRepository {
         val changed = (newIndex != currentLyricIndex)
         currentLyricIndex = newIndex
         if (changed) {
-            // Keep Android Auto's mirrored Now Playing card in sync with the active line.
-            com.nothing.lyricwidget.service.AutoMediaService.publishLyric(getLyricAt(currentLyricIndex))
+            onLyricChanged?.invoke(getLyricAt(currentLyricIndex))
         }
         return changed
     }
