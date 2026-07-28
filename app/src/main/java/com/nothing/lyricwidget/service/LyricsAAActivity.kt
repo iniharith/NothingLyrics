@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.nothing.lyricwidget.utils.LyricRepository
@@ -39,24 +40,24 @@ class LyricsAAActivity : Activity() {
         super.onCreate(savedInstanceState)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = android.view.Gravity.BOTTOM
-            setPadding(32, 32, 32, 32)
+            gravity = Gravity.BOTTOM
+            setPadding(40, 40, 40, 48)
             setBackgroundColor(Color.BLACK)
         }
         lineView = TextView(this).apply {
             setTextColor(Color.WHITE)
-            textSize = 18f
+            textSize = 24f
         }
         infoView = TextView(this).apply {
-            setTextColor(Color.argb(100, 255, 255, 255))
-            textSize = 11f
+            setTextColor(Color.argb(180, 255, 255, 255))
+            textSize = 14f
             text = "Waiting for music…"
         }
         root.addView(lineView)
         root.addView(infoView, LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
             LinearLayout.LayoutParams.WRAP_CONTENT
-        ).also { it.topMargin = 16 })
+        ).also { it.topMargin = 12 })
         setContentView(root)
         handler.post(poll)
     }
