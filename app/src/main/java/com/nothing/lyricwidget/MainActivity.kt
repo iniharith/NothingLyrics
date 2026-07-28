@@ -711,74 +711,50 @@ private fun LyricsOnlyScreen(
     lyricSizeSp: Float,
     onExit: () -> Unit
 ) {
-    val lyricListState = rememberLazyListState()
-    val artworkMotion = rememberInfiniteTransition(label = "aodArtworkMotion")
-    val artworkDrift by artworkMotion.animateFloat(
-        initialValue = -1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 18000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "aodArtworkDrift"
-    )
-    val density = LocalDensity.current
-    val driftX = with(density) { 5.dp.toPx() } * artworkDrift
-    val driftY = with(density) { 3.dp.toPx() } * -artworkDrift
+    val currentLyric = if (lyricIndex in lyricLines.indices) lyricLines[lyricIndex].text else ""
+    val nextLyric = if (lyricIndex + 1 in lyricLines.indices) lyricLines[lyricIndex + 1].text else ""
 
-    LaunchedEffect(lyricIndex, lyricLines.size) {
-        if (lyricIndex >= 0) lyricListState.centerItem(lyricIndex)
-    }
-
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black).clickable(onClick = onExit)) {
-        if (showAlbumArt && albumArt != null) {
-            Row(modifier = Modifier.fillMaxSize()) {
-                AodLyricsList(lyricListState, lyricIndex, lyricLines, lyricColor, lyricSizeSp, Modifier.weight(0.62f))
-                Box(
-                    modifier = Modifier
-                        .weight(0.38f)
-                        .fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val artworkShape = RoundedCornerShape(24.dp)
-                    Box(
-                        modifier = Modifier
-                            .size(220.dp)
-                            .offset(x = (-20).dp)
-                            .background(Color.Black, artworkShape)
-                            .clip(artworkShape)
-                    ) {
-                        Image(
-                            bitmap = albumArt.asImageBitmap(),
-                            contentDescription = "Album artwork",
-                            contentScale = ContentScale.Crop,
-                            // Dark monochrome artwork remains visible without becoming an OLED hotspot.
-                            colorFilter = ColorFilter.colorMatrix(
-                                ColorMatrix(floatArrayOf(
-                                    0.117f, 0.393f, 0.040f, 0f, 0f,
-                                    0.117f, 0.393f, 0.040f, 0f, 0f,
-                                    0.117f, 0.393f, 0.040f, 0f, 0f,
-                                    0f, 0f, 0f, 0.82f, 0f
-                                ))
-                            ),
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer {
-                                    translationX = driftX
-                                    translationY = driftY
-                                    rotationX = artworkDrift * 1.1f
-                                    rotationY = artworkDrift * 2.2f
-                                    rotationZ = artworkDrift * 0.25f
-                                    scaleX = 1f + artworkDrift * 0.012f
-                                    scaleY = 1f + artworkDrift * 0.012f
-                                    cameraDistance = 10f * density.density
-                                }
-                        )
-                    }
-                }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .clickable(onClick = onExit)
+            .padding(horizontal = 28.dp, vertical = 24.dp),
+        contentAlignment = Alignment.BottomStart
+    ) {
+        Column {
+            if (currentLyric.isNotBlank()) {
+                Text(
+                    text = currentLyric,
+                    color = lyricColor,
+                    fontSize = lyricSizeSp.sp,
+                    fontWeight = FontWeight.Normal,
+                    lineHeight = (lyricSizeSp + 10f).sp
+                )
             }
-        } else {
-            AodLyricsList(lyricListState, lyricIndex, lyricLines, lyricColor, lyricSizeSp, Modifier.fillMaxSize())
+            if (nextLyric.isNotBlank() && currentLyric.isNotBlank()) {
+                Text(
+                    text = nextLyric,
+                    color = lyricColor.copy(alpha = 0.35f),
+                    fontSize = (lyricSizeSp - 6f).coerceAtLeast(14f).sp,
+                    lineHeight = (lyricSizeSp + 4f).sp,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+            if (currentLyric.isBlank() && lyricLines.isEmpty()) {
+                Text(
+                    text = if (com.nothing.lyricwidget.utils.LyricRepository.currentTrack.isNotBlank())
+                        "Fetching lyrics…" else "Waiting for music…",
+                    color = lyricColor.copy(alpha = 0.5f),
+                    fontSize = lyricSizeSp.sp
+                )
+            }
+            Text(
+                text = "${com.nothing.lyricwidget.utils.LyricRepository.currentTrack} · ${com.nothing.lyricwidget.utils.LyricRepository.currentArtist}",
+                color = lyricColor.copy(alpha = 0.4f),
+                fontSize = 11.sp,
+                modifier = Modifier.padding(top = 18.dp)
+            )
         }
     }
 }
