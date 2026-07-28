@@ -11,31 +11,30 @@ import com.nothing.lyricwidget.utils.LyricRepository
 class LyricsAAActivity : AppCompatActivity() {
     private lateinit var songInfo: TextView
     private lateinit var currentLine: TextView
-    private lateinit var emptyState: TextView
     private val handler = Handler(Looper.getMainLooper())
-    private var updating = false
+    private var running = false
 
     private val updateTask = object : Runnable {
         override fun run() {
-            if (!updating) return
-            updateUi()
-            handler.postDelayed(this, 400)
+            if (!running) return
+            try { updateUi() } catch (_: Exception) { }
+            handler.postDelayed(this, 500)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_lyrics_aa)
-        songInfo = findViewById(R.id.songInfo)
-        currentLine = findViewById(R.id.currentLine)
-        emptyState = findViewById(R.id.emptyState)
-        updateUi()
-        updating = true
+        try {
+            setContentView(R.layout.activity_lyrics_aa)
+            songInfo = findViewById(R.id.songInfo)
+            currentLine = findViewById(R.id.currentLine)
+        } catch (_: Exception) { }
+        running = true
         handler.post(updateTask)
     }
 
     override fun onDestroy() {
-        updating = false
+        running = false
         handler.removeCallbacks(updateTask)
         super.onDestroy()
     }
@@ -48,29 +47,18 @@ class LyricsAAActivity : AppCompatActivity() {
 
         if (title.isBlank()) {
             songInfo.text = "Waiting for music…"
-            currentLine.visibility = android.view.View.GONE
-            emptyState.visibility = android.view.View.GONE
+            currentLine.text = ""
             return
         }
 
         songInfo.text = "$title · $artist"
 
         if (lyrics.isEmpty()) {
-            currentLine.visibility = android.view.View.GONE
-            emptyState.visibility = android.view.View.VISIBLE
-            emptyState.text = "No lyrics found"
+            currentLine.text = ""
             return
         }
 
-        if (index < 0 || index >= lyrics.size) {
-            currentLine.visibility = android.view.View.GONE
-            emptyState.visibility = android.view.View.VISIBLE
-            emptyState.text = "Loading lyrics…"
-            return
-        }
-
-        emptyState.visibility = android.view.View.GONE
-        currentLine.visibility = android.view.View.VISIBLE
-        currentLine.text = lyrics[index].text
+        val displayIndex = if (index < 0) 0 else index
+        currentLine.text = lyrics[displayIndex].text
     }
 }

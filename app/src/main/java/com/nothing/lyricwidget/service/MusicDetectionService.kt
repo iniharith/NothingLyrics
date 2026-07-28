@@ -14,6 +14,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import com.nothing.lyricwidget.service.AutoMediaService
 import com.nothing.lyricwidget.utils.LyricRepository
 import com.nothing.lyricwidget.widget.NothingLyricWidget
 
@@ -134,6 +135,7 @@ class MusicDetectionService : Service() {
                         metadata.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
                             ?: metadata.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART)
                     )
+                    AutoMediaService.publish(controller)
                     return
                 }
             }

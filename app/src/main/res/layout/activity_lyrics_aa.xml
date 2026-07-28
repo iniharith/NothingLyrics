@@ -1,47 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="bottom"
     android:background="#ff000000"
     android:keepScreenOn="true"
-    android:padding="32dp">
+    android:padding="24dp">
 
-    <LinearLayout
-        android:layout_width="match_parent"
+    <TextView
+        android:id="@+id/currentLine"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:orientation="vertical">
+        android:textColor="#ffffff"
+        android:textSize="18sp"
+        android:gravity="start" />
 
-        <TextView
-            android:id="@+id/songInfo"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#66ffffff"
-            android:textSize="11sp"
-            android:gravity="start"
-            android:text="Waiting for music…" />
+    <TextView
+        android:id="@+id/songInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="#66ffffff"
+        android:textSize="11sp"
+        android:text="Waiting for music…"
+        android:layout_marginTop="10dp"
+        android:gravity="start" />
 
-        <TextView
-            android:id="@+id/currentLine"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#ffffff"
-            android:textSize="18sp"
-            android:textStyle="normal"
-            android:gravity="start"
-            android:layout_marginTop="8dp"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/emptyState"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#44ffffff"
-            android:textSize="14sp"
-            android:gravity="start"
-            android:layout_marginTop="8dp"
-            android:visibility="gone" />
-
-    </LinearLayout>
-
-</FrameLayout>
+</LinearLayout>

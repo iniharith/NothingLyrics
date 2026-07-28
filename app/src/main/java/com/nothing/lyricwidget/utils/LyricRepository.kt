@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import com.nothing.lyricwidget.model.LyricLine
+import com.nothing.lyricwidget.service.AutoMediaService
 import com.nothing.lyricwidget.widget.NothingLyricWidget
 
 object LyricRepository {
@@ -18,8 +19,7 @@ object LyricRepository {
     var isPlaying: Boolean = false
         private set
     var lyricLines: List<LyricLine> = emptyList()
-    var onTrackChanged: ((track: String, artist: String, album: String) -> Unit)? = null
-    var onLyricChanged: ((lyric: String) -> Unit)? = null
+        private set
     var currentLyricIndex: Int = -1
         private set
 
@@ -52,7 +52,6 @@ object LyricRepository {
         if (trackChanged) {
             lyricLines = emptyList()
             currentLyricIndex = -1
-            onTrackChanged?.invoke(track, artist, album)
 
             val cachedLyrics = context.getSharedPreferences(CACHE_NAME, Context.MODE_PRIVATE)
                 .getString(cacheKey(track, artist), null)
@@ -126,7 +125,7 @@ object LyricRepository {
         val changed = (newIndex != currentLyricIndex)
         currentLyricIndex = newIndex
         if (changed) {
-            onLyricChanged?.invoke(getLyricAt(currentLyricIndex))
+            AutoMediaService.publishLyric(getLyricAt(currentLyricIndex))
         }
         return changed
     }

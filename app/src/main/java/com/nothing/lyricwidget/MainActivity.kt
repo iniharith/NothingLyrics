@@ -134,7 +134,7 @@ class MainActivity : ComponentActivity() {
     private val albumArtState = mutableStateOf<Bitmap?>(null)
     private val isPlayingState = mutableStateOf(false)
     private val detectionMethodState = mutableStateOf("")
-    private val lyricsOnlyState = mutableStateOf(false)
+    private val lyricsOnlyState = mutableStateOf(true)
     private val aodAlbumArtState = mutableStateOf(false)
     private val aodFontColorState = mutableStateOf(Color.White)
     private val aodFontSizeState = mutableStateOf(30f)
