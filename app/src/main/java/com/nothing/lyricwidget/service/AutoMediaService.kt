@@ -33,6 +33,7 @@ class AutoMediaService : MediaLibraryService() {
     @Volatile private var lastLyricLine: String = ""
     @Volatile private var lastAlbum: String = ""
     @Volatile private var positionUpdateActive = false
+    @Volatile private var trackChangedFlag = false
 
     private val positionUpdateRunnable = object : Runnable {
         override fun run() {
@@ -118,7 +119,12 @@ class AutoMediaService : MediaLibraryService() {
         lastTitle = title
         lastArtist = artist
         if (artworkData != null) lastArtworkData = artworkData
-        if (trackChanged) lastLyricLine = ""
+        if (trackChanged) {
+            lastLyricLine = ""
+            trackChangedFlag = true
+        } else {
+            trackChangedFlag = false
+        }
 
         renderCurrentItem(album)
     }
@@ -130,6 +136,7 @@ class AutoMediaService : MediaLibraryService() {
         }
         if (lastTitle.isBlank() || lyricText == lastLyricLine) return
         lastLyricLine = lyricText
+        trackChangedFlag = false
         renderCurrentItem(lastAlbum)
     }
 
@@ -164,7 +171,12 @@ class AutoMediaService : MediaLibraryService() {
                 .build()
 
             currentItem = item
-            mirrorPlayer.publishItem(item)
+            if (trackChangedFlag) {
+                mirrorPlayer.publishTrack(item)
+                trackChangedFlag = false
+            } else {
+                mirrorPlayer.publishLine(item)
+            }
         } catch (exception: Exception) {
             Log.e("AutoMediaService", "Unable to publish external media state", exception)
         }

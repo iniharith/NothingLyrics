@@ -26,8 +26,18 @@ class LyricMirrorPlayer(looper: Looper) : SimpleBasePlayer(looper) {
         invalidateState()
     }
 
-    fun publishItem(mediaItem: MediaItem) {
-        currentItemData = buildItemData(mediaItem)
+    fun publishTrack(mediaItem: MediaItem) {
+        currentItemData = buildItemData(mediaItem, "track_" + System.currentTimeMillis())
+        invalidateState()
+    }
+
+    fun publishLine(mediaItem: MediaItem) {
+        val existing = currentItemData
+        currentItemData = if (existing != null) {
+            existing.buildUpon().setMediaItem(mediaItem).build()
+        } else {
+            buildItemData(mediaItem, "track_" + System.currentTimeMillis())
+        }
         invalidateState()
     }
 
@@ -57,12 +67,14 @@ class LyricMirrorPlayer(looper: Looper) : SimpleBasePlayer(looper) {
         startIndex: Int,
         startPositionMs: Long
     ): ListenableFuture<*> {
-        currentItemData = mediaItems.firstOrNull()?.let { buildItemData(it) }
+        currentItemData = mediaItems.firstOrNull()?.let {
+            buildItemData(it, "track_" + System.currentTimeMillis())
+        }
         return Futures.immediateVoidFuture()
     }
 
-    private fun buildItemData(mediaItem: MediaItem): MediaItemData {
-        return MediaItemData.Builder("lyric_item")
+    private fun buildItemData(mediaItem: MediaItem, uid: String): MediaItemData {
+        return MediaItemData.Builder(uid)
             .setMediaItem(mediaItem)
             .setIsSeekable(true)
             .setDurationUs(LyricRepository.getDurationMs() * 1000)
