@@ -134,6 +134,7 @@ class MusicDetectionService : Service() {
                         metadata.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
                             ?: metadata.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART)
                     )
+                    AutoMediaService.publish(controller)
                     return
                 }
             }
