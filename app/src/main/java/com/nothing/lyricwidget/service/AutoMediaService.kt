@@ -17,7 +17,6 @@ import androidx.media3.session.MediaSession.ControllerInfo
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
-import com.nothing.lyricwidget.R
 import com.nothing.lyricwidget.utils.LyricRepository
 import java.io.ByteArrayOutputStream
 
