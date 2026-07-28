@@ -1,6 +1,10 @@
 package com.nothing.lyricwidget.service
 
 import android.net.Uri
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Intent
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.exoplayer.ExoPlayer
@@ -13,64 +17,46 @@ class AutoMediaService : MediaSessionService() {
 
     private lateinit var player: ExoPlayer
     private lateinit var mediaSession: MediaSession
-    private var currentTrackId: String? = null
 
     override fun onCreate() {
         super.onCreate()
-        val silentUri = Uri.parse("android.resource://${packageName}/${R.raw.silent}")
-        player = ExoPlayer.Builder(this).build().also { it.playWhenReady = true }
-        player.setMediaItem(placeholderItem)
-        player.prepare()
-        mediaSession = MediaSession.Builder(this, player).build()
+        val channelId = "media_playback_channel"
+        val channel = NotificationChannel(channelId, "Media Playback", NotificationManager.IMPORTANCE_LOW)
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
 
-        LyricRepository.onTrackChanged = { track, artist, album ->
-            val trackId = "$track|$artist"
-            currentTrackId = trackId
-            val item = MediaItem.Builder()
-                .setMediaId(trackId)
+        val silentUri = Uri.parse("android.resource://${packageName}/${R.raw.silent}")
+        player = ExoPlayer.Builder(this).build()
+        player.setMediaItem(
+            MediaItem.Builder()
+                .setMediaId("nothinglyrics_session")
                 .setUri(silentUri)
                 .setMediaMetadata(
                     MediaMetadata.Builder()
-                        .setTitle(track)
-                        .setArtist(artist)
-                        .setAlbumTitle(album)
-                        .setDescription(LyricRepository.getLyricAt(LyricRepository.currentLyricIndex))
+                        .setTitle("NothingLyrics")
+                        .setArtist("Lyrics provider")
                         .build()
                 )
                 .build()
-            player.setMediaItem(item)
-            player.prepare()
-        }
-
-        LyricRepository.onLyricChanged = { lyric ->
-            val current = player.currentMediaItem
-            if (current != null) {
-                val meta = current.mediaMetadata.buildUpon().setDescription(lyric).build()
-                val item = current.buildUpon().setMediaMetadata(meta).build()
-                player.replaceMediaItem(0, item)
-            }
-        }
+        )
+        player.prepare()
+        player.playWhenReady = true
+        mediaSession = MediaSession.Builder(this, player).build()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession = mediaSession
 
     override fun onDestroy() {
-        LyricRepository.onTrackChanged = null
-        LyricRepository.onLyricChanged = null
         mediaSession.release()
         player.release()
         super.onDestroy()
     }
 
-    companion object {
-        private val placeholderItem = MediaItem.Builder()
-            .setMediaId("nothinglyrics_placeholder")
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle("NothingLyrics")
-                    .setArtist("Waiting for music…")
-                    .build()
-            )
-            .build()
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground(1, Notification.Builder(this, "media_playback_channel")
+            .setContentTitle("NothingLyrics")
+            .setContentText("Lyrics provider")
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .build())
+        return super.onStartCommand(intent, flags, startId)
     }
 }
