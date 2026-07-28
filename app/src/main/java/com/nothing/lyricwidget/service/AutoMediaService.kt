@@ -137,6 +137,7 @@ class AutoMediaService : MediaLibraryService() {
                 .setArtist(lastArtist)
                 .setAlbumTitle(lastTitle)
                 .setIsPlayable(true)
+                .setIsBrowsable(true)
             lastArtworkData?.let {
                 mediaMetadata.setArtworkData(it, Media3Metadata.PICTURE_TYPE_FRONT_COVER)
             }
@@ -199,6 +200,7 @@ class AutoMediaService : MediaLibraryService() {
         .setMediaMetadata(
             Media3Metadata.Builder()
                 .setTitle("Now Playing")
+                .setIsPlayable(true)
                 .setIsBrowsable(true)
                 .build()
         )
@@ -210,6 +212,7 @@ class AutoMediaService : MediaLibraryService() {
             Media3Metadata.Builder()
                 .setTitle("Waiting for music")
                 .setIsPlayable(false)
+                .setIsBrowsable(true)
                 .build()
         )
         .build()
