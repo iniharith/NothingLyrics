@@ -98,6 +98,11 @@ object LyricRepository {
         return if (durationMs > 0) estimated.coerceAtMost(durationMs) else estimated
     }
 
+    fun setPlaybackPositionMs(positionMs: Long) {
+        lastKnownPositionMs = positionMs.coerceAtLeast(0)
+        lastUpdateTimeMs = System.currentTimeMillis()
+    }
+
     fun updateLyricIndex(): Boolean {
         if (lyricLines.isEmpty()) {
             val changed = currentLyricIndex != -1

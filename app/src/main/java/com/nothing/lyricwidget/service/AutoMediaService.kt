@@ -3,15 +3,11 @@ package com.nothing.lyricwidget.service
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.graphics.Bitmap
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata as Media3Metadata
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.LibraryParams
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
@@ -27,7 +23,7 @@ import java.io.ByteArrayOutputStream
 
 class AutoMediaService : MediaLibraryService() {
     private val mainHandler = Handler(Looper.getMainLooper())
-    private lateinit var backingPlayer: ExoPlayer
+    private val mirrorPlayer = LyricMirrorPlayer(Looper.myLooper()!!)
     private var mediaLibrarySession: MediaLibrarySession? = null
     @Volatile private var currentItem: MediaItem? = null
 
@@ -36,39 +32,22 @@ class AutoMediaService : MediaLibraryService() {
     @Volatile private var lastArtworkData: ByteArray? = null
     @Volatile private var lastLyricLine: String = ""
     @Volatile private var lastAlbum: String = ""
-    @Volatile private var positionSyncActive = false
+    @Volatile private var positionUpdateActive = false
 
-    private val silentUri: Uri by lazy {
-        Uri.parse("android.resource://$packageName/${R.raw.silent}")
-    }
-
-    private val positionSyncRunnable = object : Runnable {
+    private val positionUpdateRunnable = object : Runnable {
         override fun run() {
-            if (!positionSyncActive) return
-            try {
-                val pos = LyricRepository.getPlaybackPositionMs()
-                if (pos > 0 && ::backingPlayer.isInitialized) {
-                    backingPlayer.seekTo(pos.coerceAtLeast(0))
-                }
-            } catch (_: Exception) {}
-            mainHandler.postDelayed(this, 1000)
+            if (!positionUpdateActive) return
+            mirrorPlayer.publishPosition()
+            mainHandler.postDelayed(this, 500)
         }
     }
 
     override fun onCreate() {
         super.onCreate()
         activeService = this
-        backingPlayer = ExoPlayer.Builder(this).build().also {
-            it.playWhenReady = true
-            it.addListener(object : Player.Listener {
-                override fun onPlayerError(error: PlaybackException) {
-                    Log.e("AutoMediaService", "Player error: ${error.errorCode}")
-                }
-            })
-        }
         mediaLibrarySession = MediaLibrarySession.Builder(
             this,
-            backingPlayer,
+            mirrorPlayer,
             object : MediaLibrarySession.Callback {
                 override fun onGetLibraryRoot(
                     session: MediaLibrarySession,
@@ -100,28 +79,28 @@ class AutoMediaService : MediaLibraryService() {
                 artworkData = null
             )
         }
-        startPositionSync()
+        startPositionUpdates()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaLibrarySession
 
     override fun onDestroy() {
-        stopPositionSync()
+        stopPositionUpdates()
         if (activeService === this) activeService = null
         mediaLibrarySession?.release()
         mediaLibrarySession = null
-        backingPlayer.release()
+        mirrorPlayer.release()
         super.onDestroy()
     }
 
-    private fun startPositionSync() {
-        positionSyncActive = true
-        mainHandler.post(positionSyncRunnable)
+    private fun startPositionUpdates() {
+        positionUpdateActive = true
+        mainHandler.post(positionUpdateRunnable)
     }
 
-    private fun stopPositionSync() {
-        positionSyncActive = false
-        mainHandler.removeCallbacks(positionSyncRunnable)
+    private fun stopPositionUpdates() {
+        positionUpdateActive = false
+        mainHandler.removeCallbacks(positionUpdateRunnable)
     }
 
     private fun publishSnapshot(
@@ -181,18 +160,11 @@ class AutoMediaService : MediaLibraryService() {
             }
             val item = MediaItem.Builder()
                 .setMediaId(STEADY_MEDIA_ID)
-                .setUri(silentUri)
                 .setMediaMetadata(mediaMetadata.build())
                 .build()
 
-            if (currentItem == null) {
-                backingPlayer.setMediaItem(item)
-                backingPlayer.prepare()
-            } else {
-                backingPlayer.replaceMediaItem(0, item)
-            }
             currentItem = item
-            backingPlayer.seekTo(LyricRepository.getPlaybackPositionMs().coerceAtLeast(0))
+            mirrorPlayer.publishItem(item)
         } catch (exception: Exception) {
             Log.e("AutoMediaService", "Unable to publish external media state", exception)
         }
