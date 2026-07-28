@@ -3,11 +3,13 @@ package com.nothing.lyricwidget.service
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata as Media3Metadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
@@ -19,6 +21,7 @@ import androidx.media3.session.MediaSession.ControllerInfo
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.nothing.lyricwidget.R
 import com.nothing.lyricwidget.utils.LyricRepository
 import java.io.ByteArrayOutputStream
 
@@ -34,11 +37,20 @@ class AutoMediaService : MediaLibraryService() {
     @Volatile private var lastLyricLine: String = ""
     @Volatile private var lastAlbum: String = ""
 
+    private val silentUri: Uri by lazy {
+        Uri.parse("android.resource://$packageName/${R.raw.silent}")
+    }
+
     override fun onCreate() {
         super.onCreate()
         activeService = this
         backingPlayer = ExoPlayer.Builder(this).build().also {
             it.playWhenReady = true
+            it.addListener(object : Player.Listener {
+                override fun onPlayerError(error: PlaybackException) {
+                    Log.e("AutoMediaService", "Player error: ${error.errorCode}")
+                }
+            })
         }
         mediaLibrarySession = MediaLibrarySession.Builder(
             this,
@@ -130,6 +142,7 @@ class AutoMediaService : MediaLibraryService() {
             }
             val item = MediaItem.Builder()
                 .setMediaId(STEADY_MEDIA_ID)
+                .setUri(silentUri)
                 .setMediaMetadata(mediaMetadata.build())
                 .build()
 
@@ -140,7 +153,7 @@ class AutoMediaService : MediaLibraryService() {
                 backingPlayer.replaceMediaItem(0, item)
             }
             currentItem = item
-        } catch (exception: IllegalStateException) {
+        } catch (exception: Exception) {
             Log.e("AutoMediaService", "Unable to publish external media state", exception)
         }
     }
