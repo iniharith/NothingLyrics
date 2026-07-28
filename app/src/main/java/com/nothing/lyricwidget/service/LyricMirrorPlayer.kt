@@ -32,15 +32,24 @@ class LyricMirrorPlayer(looper: Looper) : SimpleBasePlayer(looper) {
     }
 
     override fun getState(): State {
-        val pos = LyricRepository.getPlaybackPositionMs()
-        val playlist = listOf(currentItemData ?: placeholderItem)
-        return State.Builder()
-            .setPlayWhenReady(true, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
-            .setPlaybackState(Player.STATE_READY)
-            .setContentPositionMs(pos)
-            .setCurrentMediaItemIndex(0)
-            .setPlaylist(playlist)
-            .build()
+        return try {
+            val pos = LyricRepository.getPlaybackPositionMs()
+            State.Builder()
+                .setPlayWhenReady(true, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
+                .setPlaybackState(Player.STATE_READY)
+                .setContentPositionMs(pos)
+                .setCurrentMediaItemIndex(0)
+                .setPlaylist(listOf(currentItemData ?: placeholderItem))
+                .build()
+        } catch (e: Exception) {
+            State.Builder()
+                .setPlayWhenReady(true, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
+                .setPlaybackState(Player.STATE_READY)
+                .setContentPositionMs(0)
+                .setCurrentMediaItemIndex(0)
+                .setPlaylist(listOf(placeholderItem))
+                .build()
+        }
     }
 
     fun publishPosition() {
@@ -98,7 +107,7 @@ class LyricMirrorPlayer(looper: Looper) : SimpleBasePlayer(looper) {
         return MediaItemData.Builder(uid)
             .setMediaItem(mediaItem)
             .setIsSeekable(true)
-            .setDurationUs((LyricRepository.getDurationMs() * 1000).coerceAtLeast(1))
+            .setDurationUs((LyricRepository.getDurationMs() * 1000).coerceIn(1, Long.MAX_VALUE / 2))
             .build()
     }
 }
