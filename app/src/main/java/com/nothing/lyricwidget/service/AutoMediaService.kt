@@ -36,9 +36,23 @@ class AutoMediaService : MediaLibraryService() {
     @Volatile private var lastArtworkData: ByteArray? = null
     @Volatile private var lastLyricLine: String = ""
     @Volatile private var lastAlbum: String = ""
+    @Volatile private var positionSyncActive = false
 
     private val silentUri: Uri by lazy {
         Uri.parse("android.resource://$packageName/${R.raw.silent}")
+    }
+
+    private val positionSyncRunnable = object : Runnable {
+        override fun run() {
+            if (!positionSyncActive) return
+            try {
+                val pos = LyricRepository.getPlaybackPositionMs()
+                if (pos > 0 && ::backingPlayer.isInitialized) {
+                    backingPlayer.seekTo(pos.coerceAtLeast(0))
+                }
+            } catch (_: Exception) {}
+            mainHandler.postDelayed(this, 1000)
+        }
     }
 
     override fun onCreate() {
@@ -86,16 +100,28 @@ class AutoMediaService : MediaLibraryService() {
                 artworkData = null
             )
         }
+        startPositionSync()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = mediaLibrarySession
 
     override fun onDestroy() {
+        stopPositionSync()
         if (activeService === this) activeService = null
         mediaLibrarySession?.release()
         mediaLibrarySession = null
         backingPlayer.release()
         super.onDestroy()
+    }
+
+    private fun startPositionSync() {
+        positionSyncActive = true
+        mainHandler.post(positionSyncRunnable)
+    }
+
+    private fun stopPositionSync() {
+        positionSyncActive = false
+        mainHandler.removeCallbacks(positionSyncRunnable)
     }
 
     private fun publishSnapshot(
@@ -131,9 +157,21 @@ class AutoMediaService : MediaLibraryService() {
     private fun renderCurrentItem(album: String) {
         lastAlbum = album
         try {
+            val nextIndex = LyricRepository.currentLyricIndex + 1
+            val nextLine = if (nextIndex < LyricRepository.lyricLines.size) LyricRepository.lyricLines[nextIndex].text else ""
+
             val displayTitle = lastLyricLine.ifBlank { lastTitle }
+            val displaySubtitle = nextLine.ifBlank { lastArtist }
+            val displayDescription = buildString {
+                append(displayTitle)
+                if (nextLine.isNotBlank()) append("\n").append(nextLine)
+                append("\n— ").append(lastTitle).append(" · ").append(lastArtist)
+            }
+
             val mediaMetadata = Media3Metadata.Builder()
                 .setTitle(displayTitle)
+                .setSubtitle(displaySubtitle)
+                .setDescription(displayDescription)
                 .setArtist(lastArtist)
                 .setAlbumTitle(lastTitle)
                 .setIsPlayable(true)
@@ -154,6 +192,7 @@ class AutoMediaService : MediaLibraryService() {
                 backingPlayer.replaceMediaItem(0, item)
             }
             currentItem = item
+            backingPlayer.seekTo(LyricRepository.getPlaybackPositionMs().coerceAtLeast(0))
         } catch (exception: Exception) {
             Log.e("AutoMediaService", "Unable to publish external media state", exception)
         }
