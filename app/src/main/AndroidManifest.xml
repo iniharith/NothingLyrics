@@ -44,7 +44,7 @@
             android:exported="true"
             android:resizeableActivity="true"
             android:configChanges="uiMode|orientation|screenSize|screenLayout|density"
-            android:theme="@style/Theme.AA.Lyrics">
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.DEFAULT" />
