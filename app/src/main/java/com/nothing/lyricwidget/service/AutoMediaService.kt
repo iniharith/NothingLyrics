@@ -1,5 +1,7 @@
 package com.nothing.lyricwidget.service
 
+import android.app.PendingIntent
+import android.content.Intent
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.graphics.Bitmap
@@ -7,6 +9,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata as Media3Metadata
 import androidx.media3.common.PlaybackException
@@ -43,14 +46,29 @@ class AutoMediaService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         activeService = this
-        backingPlayer = ExoPlayer.Builder(this).build().also {
-            it.playWhenReady = true
-            it.addListener(object : Player.Listener {
-                override fun onPlayerError(error: PlaybackException) {
-                    Log.e("AutoMediaService", "Player error: ${error.errorCode}")
-                }
-            })
-        }
+        // handleAudioFocus = false: this player only exists to publish fake "now playing"
+        // metadata (title/artist swapped for lyrics) for Android Auto's Now Playing screen.
+        // It must never request real audio focus, or it will duck/pause whatever the user is
+        // actually listening to (Spotify, YT Music, etc.) and that gets reported as "stopped
+        // detecting the song".
+        backingPlayer = ExoPlayer.Builder(this)
+            .setAudioAttributes(AudioAttributes.DEFAULT, /* handleAudioFocus= */ false)
+            .build().also {
+                it.playWhenReady = true
+                it.addListener(object : Player.Listener {
+                    override fun onPlayerError(error: PlaybackException) {
+                        Log.e("AutoMediaService", "Player error: ${error.errorCode}")
+                    }
+                })
+            }
+
+        val sessionActivity = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, com.nothing.lyricwidget.MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
         mediaLibrarySession = MediaLibrarySession.Builder(
             this,
             backingPlayer,
@@ -75,7 +93,7 @@ class AutoMediaService : MediaLibraryService() {
                     return Futures.immediateFuture(LibraryResult.ofItemList(items, params))
                 }
             }
-        ).build()
+        ).setSessionActivity(sessionActivity).build()
 
         if (LyricRepository.currentTrack.isNotBlank()) {
             publishSnapshot(
@@ -130,8 +148,12 @@ class AutoMediaService : MediaLibraryService() {
     private fun renderCurrentItem(album: String) {
         lastAlbum = album
         try {
+            // Snapshot both into locals: lyricLines can be reassigned from a background thread
+            // (LyricRepository.fetchLyricsInBackground), so reading .size and then indexing as
+            // two separate property reads risks a torn read against a shorter, newer list.
+            val lines = LyricRepository.lyricLines
             val nextIndex = LyricRepository.currentLyricIndex + 1
-            val nextLine = if (nextIndex < LyricRepository.lyricLines.size) LyricRepository.lyricLines[nextIndex].text else ""
+            val nextLine = if (nextIndex in lines.indices) lines[nextIndex].text else ""
 
             val displayTitle = lastLyricLine.ifBlank { lastTitle }
             val displaySubtitle = nextLine.ifBlank { lastArtist }
@@ -177,18 +199,25 @@ class AutoMediaService : MediaLibraryService() {
         private var activeService: AutoMediaService? = null
 
         fun publish(controller: MediaController) {
-            val metadata = controller.metadata ?: return
-            val title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE).orEmpty()
-            if (title.isBlank()) return
-            val artwork = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
-                ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
+            try {
+                val metadata = controller.metadata ?: return
+                val title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE).orEmpty()
+                if (title.isBlank()) return
+                val artwork = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+                    ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
 
-            activeService?.publishSnapshot(
-                title = title,
-                artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST).orEmpty(),
-                album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM).orEmpty(),
-                artworkData = artwork?.toJpeg()
-            )
+                activeService?.publishSnapshot(
+                    title = title,
+                    artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST).orEmpty(),
+                    album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM).orEmpty(),
+                    artworkData = artwork?.toJpeg()
+                )
+            } catch (e: IllegalStateException) {
+                // Controller's session died between the caller checking it and us reading it.
+                Log.w("AutoMediaService", "publish() on stale controller: ${e.message}")
+            } catch (e: Exception) {
+                Log.e("AutoMediaService", "publish() failed: ${e.message}")
+            }
         }
 
         fun publishLyric(lyricText: String) {

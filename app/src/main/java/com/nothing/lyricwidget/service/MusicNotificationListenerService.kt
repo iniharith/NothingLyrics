@@ -81,7 +81,7 @@ class MusicNotificationListenerService : NotificationListenerService() {
 
             var best: MediaController? = null
             for (c in controllers) {
-                val state = c.playbackState
+                val state = try { c.playbackState } catch (_: Exception) { null }
                 if (state?.state == PlaybackState.STATE_PLAYING) {
                     best = c
                     break
@@ -90,7 +90,7 @@ class MusicNotificationListenerService : NotificationListenerService() {
             if (best == null) best = controllers.firstOrNull()
 
             if (best == activeController) {
-                best?.let { updateFromController(it) }
+                best?.let { safeUpdate(it) }
                 return
             }
 
@@ -101,15 +101,23 @@ class MusicNotificationListenerService : NotificationListenerService() {
             if (best != null) {
                 val cb = object : MediaController.Callback() {
                     override fun onPlaybackStateChanged(state: PlaybackState?) {
-                        updateFromController(best)
+                        safeUpdate(best)
                     }
                     override fun onMetadataChanged(metadata: MediaMetadata?) {
-                        updateFromController(best)
+                        safeUpdate(best)
+                    }
+                    override fun onSessionDestroyed() {
+                        Log.d(TAG, "Session destroyed for ${best.packageName}, refreshing")
+                        if (activeController == best) {
+                            activeController = null
+                            currentController = null
+                        }
+                        refreshController()
                     }
                 }
                 best.registerCallback(cb)
                 controllerCallback = cb
-                updateFromController(best)
+                safeUpdate(best)
                 Log.d(TAG, "Registered to: ${best.packageName}")
             }
         } catch (e: SecurityException) {
@@ -126,8 +134,31 @@ class MusicNotificationListenerService : NotificationListenerService() {
         controllerCallback = null
     }
 
+    /**
+     * MediaController.Callback methods (onPlaybackStateChanged/onMetadataChanged) fire from the
+     * framework whenever the session updates. On Android Auto, sessions die/get recreated far
+     * more often (audio focus ducking for nav prompts, BT handoff, app switching), so calling
+     * into a controller whose session has just died throws IllegalStateException. Uncaught, that
+     * crashes the whole app. Always go through this wrapper instead of calling
+     * updateFromController() directly.
+     */
+    private fun safeUpdate(controller: MediaController) {
+        try {
+            updateFromController(controller)
+        } catch (e: IllegalStateException) {
+            Log.w(TAG, "Stale controller (session died), refreshing: ${e.message}")
+            if (activeController == controller) {
+                unregisterCallback()
+                activeController = null
+                currentController = null
+            }
+            refreshController()
+        } catch (e: Exception) {
+            Log.e(TAG, "safeUpdate error: ${e.message}")
+        }
+    }
+
     private fun updateFromController(controller: MediaController) {
-        currentController = controller
         val metadata = controller.metadata ?: return
         val state = controller.playbackState
 
@@ -139,6 +170,8 @@ class MusicNotificationListenerService : NotificationListenerService() {
             ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
         val isPlaying = state?.state == PlaybackState.STATE_PLAYING
         val position = state?.position ?: 0L
+
+        currentController = controller
 
         if (title.isNotBlank()) {
             LyricRepository.updateTrack(applicationContext, title, artist, album, duration, isPlaying, position, albumArt)
