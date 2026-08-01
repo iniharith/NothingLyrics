@@ -75,12 +75,29 @@ class AutoMediaService : MediaLibraryService() {
             }
         }
 
-        override fun play() = MusicNotificationListenerService.play()
-        override fun pause() = MusicNotificationListenerService.pause()
-        override fun seekToNext() = MusicNotificationListenerService.skipToNext()
-        override fun seekToNextMediaItem() = MusicNotificationListenerService.skipToNext()
-        override fun seekToPrevious() = MusicNotificationListenerService.skipToPrevious()
-        override fun seekToPreviousMediaItem() = MusicNotificationListenerService.skipToPrevious()
+        override fun play() {
+            MusicNotificationListenerService.play()
+        }
+
+        override fun pause() {
+            MusicNotificationListenerService.pause()
+        }
+
+        override fun seekToNext() {
+            MusicNotificationListenerService.skipToNext()
+        }
+
+        override fun seekToNextMediaItem() {
+            MusicNotificationListenerService.skipToNext()
+        }
+
+        override fun seekToPrevious() {
+            MusicNotificationListenerService.skipToPrevious()
+        }
+
+        override fun seekToPreviousMediaItem() {
+            MusicNotificationListenerService.skipToPrevious()
+        }
     }
 
     override fun onCreate() {
