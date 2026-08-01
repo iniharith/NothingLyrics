@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">Nothing Lyrics</string>
     <string name="widget_name">Nothing Lyrics Widget</string>
+    <string name="player_widget_name">Nothing Lyrics Player</string>
 </resources>

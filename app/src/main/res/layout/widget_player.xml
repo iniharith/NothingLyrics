@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_background"
+    android:padding="16dp">
+
+    <!-- Header row: spinning disc + track meta + current lyric -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:id="@+id/widget_player_disc"
+            android:layout_width="92dp"
+            android:layout_height="92dp"
+            android:contentDescription="Album art"
+            android:scaleType="fitXY" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="14dp">
+
+            <TextView
+                android:id="@+id/widget_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:singleLine="true"
+                android:text="Nothing Lyrics"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/widget_artist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:singleLine="true"
+                android:text="Add to home screen"
+                android:textColor="#80FFFFFF"
+                android:textSize="12sp"
+                android:layout_marginTop="2dp" />
+
+            <TextView
+                android:id="@+id/widget_lyric_line1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="monospace"
+                android:maxLines="2"
+                android:text="Play music to see lyrics"
+                android:textColor="#78E3C8"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:layout_marginTop="6dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Spacer -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- Transport row: prev / play-pause / next -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingTop="10dp">
+
+        <ImageButton
+            android:id="@+id/widget_player_prev"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/widget_button_background"
+            android:contentDescription="Previous"
+            android:padding="10dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_widget_prev" />
+
+        <ImageButton
+            android:id="@+id/widget_player_play_pause"
+            android:layout_width="58dp"
+            android:layout_height="58dp"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="20dp"
+            android:background="@drawable/widget_button_primary"
+            android:contentDescription="Play or pause"
+            android:padding="15dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_widget_play" />
+
+        <ImageButton
+            android:id="@+id/widget_player_next"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="@drawable/widget_button_background"
+            android:contentDescription="Next"
+            android:padding="10dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_widget_next" />
+    </LinearLayout>
+
+</LinearLayout>

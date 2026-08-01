@@ -75,5 +75,18 @@
                 android:resource="@xml/app_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".widget.NothingPlayerWidget"
+            android:exported="true"
+            android:label="@string/player_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.nothing.lyricwidget.action.PLAYER_WIDGET_CONTROL" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/player_widget_info" />
+        </receiver>
+
     </application>
 </manifest>

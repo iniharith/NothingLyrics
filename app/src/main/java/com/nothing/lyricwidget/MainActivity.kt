@@ -1,5 +1,6 @@
 package com.nothing.lyricwidget
 
+import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -32,6 +33,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -73,6 +76,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -116,6 +120,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.nothing.lyricwidget.api.LrcLibClient
 import com.nothing.lyricwidget.model.LyricLine
 import com.nothing.lyricwidget.service.MusicDetectionService
@@ -218,6 +223,10 @@ class MainActivity : ComponentActivity() {
                         showAlbumArt = aodAlbumArtState.value,
                         lyricColor = aodFontColorState.value,
                         lyricSizeSp = aodFontSizeState.value,
+                        isPlaying = isPlayingState.value,
+                        onPrevious = MusicNotificationListenerService::skipToPrevious,
+                        onPlayPause = { if (isPlayingState.value) MusicNotificationListenerService.pause() else MusicNotificationListenerService.play() },
+                        onNext = MusicNotificationListenerService::skipToNext,
                         onExit = { setLyricsOnlyMode(false) }
                     )
                 } else {
@@ -234,6 +243,7 @@ class MainActivity : ComponentActivity() {
                         durationMs = durationMsState.value,
                         onGrantPermissionClick = ::openNotificationAccessSettings,
                         onLyricsOnlyClick = { setLyricsOnlyMode(true) },
+                        onAddWidgetClick = ::requestWidgetPin,
                         showAodAlbumArt = aodAlbumArtState.value,
                         onAodAlbumArtClick = { aodAlbumArtState.value = !aodAlbumArtState.value },
                         aodFontColor = aodFontColorState.value,
@@ -345,6 +355,14 @@ class MainActivity : ComponentActivity() {
             }
         }.start()
     }
+
+    private fun requestWidgetPin() {
+        val ok = AppWidgetManager.getInstance(this)
+            .requestPinAppWidget(ComponentName(this, com.nothing.lyricwidget.widget.NothingPlayerWidget::class.java), null, null)
+        if (!ok) {
+            Toast.makeText(this, "Long-press the home screen and pick the Nothing Lyrics Player widget", Toast.LENGTH_LONG).show()
+        }
+    }
 }
 
 @Composable
@@ -361,6 +379,7 @@ private fun MainScreen(
     durationMs: Long,
     onGrantPermissionClick: () -> Unit,
     onLyricsOnlyClick: () -> Unit,
+    onAddWidgetClick: () -> Unit,
     showAodAlbumArt: Boolean,
     onAodAlbumArtClick: () -> Unit,
     aodFontColor: Color,
@@ -410,7 +429,7 @@ private fun MainScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black).statusBarsPadding().padding(horizontal = 8.dp)) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Row(modifier = Modifier.fillMaxWidth().padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(26.dp))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -420,15 +439,15 @@ private fun MainScreen(
                 Icon(Icons.Filled.MoreVert, contentDescription = "More options", tint = Color.White, modifier = Modifier.size(24.dp))
             }
 
-            Box(modifier = Modifier.fillMaxWidth().height(500.dp).padding(top = 30.dp), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxWidth().height(450.dp).padding(top = 22.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(
                     progress = progressFraction,
                     color = Color(0xFFD9D9D9),
                     trackColor = Color.Transparent,
                     strokeWidth = 10.dp,
-                    modifier = Modifier.requiredSize(444.dp).graphicsLayer { rotationZ = 42f }
+                    modifier = Modifier.requiredSize(400.dp).graphicsLayer { rotationZ = 42f }
                 )
-                CurvedTimeLabel(timeLabel, Modifier.requiredSize(453.dp).offset(y = (-3).dp))
+                CurvedTimeLabel(timeLabel, Modifier.requiredSize(409.dp).offset(y = (-3).dp))
                 Icon(
                     Icons.Filled.PlayCircleOutline,
                     contentDescription = "Playback speed",
@@ -442,7 +461,7 @@ private fun MainScreen(
                     color = Color(0xFF1B1C1E),
                     shape = discShape,
                     modifier = Modifier
-                        .requiredSize(405.dp)
+                        .requiredSize(365.dp)
                         .graphicsLayer { rotationZ = discRotation.value }
                         .border(1.dp, Color(0xFF38393B), discShape)
                 ) {
@@ -466,7 +485,7 @@ private fun MainScreen(
                                 strokeWidth = 1.5f
                             )
                         }
-                        Surface(color = Color.Black, shape = discShape, modifier = Modifier.size(132.dp).border(1.dp, Color(0xFF535457), discShape)) {
+                        Surface(color = Color.Black, shape = discShape, modifier = Modifier.size(119.dp).border(1.dp, Color(0xFF535457), discShape)) {
                             if (albumArt != null) {
                                 Image(bitmap = albumArt.asImageBitmap(), contentDescription = "Album art", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().clip(discShape))
                             } else {
@@ -527,7 +546,7 @@ private fun MainScreen(
                 }
             }
 
-            Row(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 28.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                 Surface(color = Color(0xFF202124), shape = discShape, modifier = Modifier.size(74.dp).clickable(onClick = onPrevious)) {
                     Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous", tint = Color.White, modifier = Modifier.padding(22.dp))
                 }
@@ -556,9 +575,10 @@ private fun MainScreen(
                 Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Volume up", tint = Color.White, modifier = Modifier.size(18.dp))
             }
 
-            Row(modifier = Modifier.fillMaxWidth().padding(top = 26.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.DarkMode, contentDescription = "AOD mode", tint = Color.White, modifier = Modifier.size(24.dp).clickable(onClick = onLyricsOnlyClick))
                 Icon(Icons.Filled.Image, contentDescription = "Toggle album art", tint = if (showAodAlbumArt) Color(0xFFD82132) else Color.White, modifier = Modifier.size(24.dp).clickable(onClick = onAodAlbumArtClick))
+                Icon(Icons.Filled.Widgets, contentDescription = "Add home screen widget", tint = Color.White, modifier = Modifier.size(24.dp).clickable(onClick = onAddWidgetClick))
                 Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = Color.White, modifier = Modifier.size(24.dp).clickable { showSettings = true })
                 Icon(Icons.Filled.GraphicEq, contentDescription = "Toggle Glyph Song", tint = if (glyphSongEnabled) Color(0xFFD82132) else Color.White, modifier = Modifier.size(24.dp).clickable(onClick = onGlyphSongToggle))
             }
@@ -730,6 +750,10 @@ private fun LyricsOnlyScreen(
     showAlbumArt: Boolean,
     lyricColor: Color,
     lyricSizeSp: Float,
+    isPlaying: Boolean,
+    onPrevious: () -> Unit,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
     onExit: () -> Unit
 ) {
     val lyricListState = rememberLazyListState()
@@ -799,6 +823,38 @@ private fun LyricsOnlyScreen(
             }
         } else {
             AodLyricsList(lyricListState, lyricIndex, lyricLines, lyricColor, lyricSizeSp, Modifier.fillMaxSize())
+        }
+
+        // Playback controls: translucent circle buttons that swallow their own taps so the
+        // rest of the screen keeps its tap-to-exit behavior.
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 30.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(26.dp)
+        ) {
+            AodControlButton(icon = Icons.Filled.SkipPrevious, size = 44, onClick = onPrevious)
+            AodControlButton(
+                icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                size = 62,
+                onClick = onPlayPause,
+                emphasis = true
+            )
+            AodControlButton(icon = Icons.Filled.SkipNext, size = 44, onClick = onNext)
+        }
+    }
+}
+
+@Composable
+private fun AodControlButton(icon: ImageVector, size: Int, emphasis: Boolean = false, onClick: () -> Unit) {
+    Surface(
+        color = if (emphasis) Color(0x99FFFFFF) else Color(0x33FFFFFF),
+        shape = CircleShape,
+        modifier = Modifier.size(size.dp).clickable(onClick = onClick)
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+            Icon(icon, contentDescription = null, tint = if (emphasis) Color.Black else Color.White, modifier = Modifier.size((size * 0.5f).dp))
         }
     }
 }

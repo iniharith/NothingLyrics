@@ -18,6 +18,7 @@ A now-playing lyric display app for **Nothing Phone (3a)** — shows live synced
 ### 📺 AOD / Lyrics-Only mode
 - Tap the moon icon (or the screen in full-screen mode) for a landscape, black, always-on style **lyrics-only view**.
 - The current line is centered and bold; past/upcoming lines are dimmed and smaller.
+- **Playback controls on the AOD screen**: previous / play-pause / next buttons stay visible at the bottom, letting you control the music without leaving the AOD view (tap-to-exit still works everywhere else on the screen).
 - Optional **drifting, blurred album art** panel beside the lyrics.
 - Adjustable **lyric color** (White / Red / Ice) and **font size** (22–42 sp) in Settings.
 
@@ -31,8 +32,9 @@ A now-playing lyric display app for **Nothing Phone (3a)** — shows live synced
 - **Transport controls (play/pause/next/previous) are forwarded** to the real music app you're listening to — no more dead buttons or laggy seek jumps.
 
 ### 🏠 Home screen widget
-- Small home-screen widget showing **current track, artist, and the next two lyric lines**, updated live.
-- Tap it to jump back into the app.
+- **Small widget** showing current track, artist, and the next lyric line, updated live — tap it to jump back into the app.
+- **Player widget** (`Nothing Lyrics Player`) mirroring the app's main-page UI: spinning album-art disc, track info, current lyric, and **play / pause / previous / next buttons** that control the actual music app.
+- Add it from the app's bottom row (the widget icon) or the launcher's widget picker; the app can also pin it directly to the home screen with one tap (Android 8.0+).
 
 ### 🎛 Main screen
 - Spinning vinyl-disc look with album art, progress ring, and a curved time/playback-speed label.
@@ -42,9 +44,9 @@ A now-playing lyric display app for **Nothing Phone (3a)** — shows live synced
 
 ## Screenshots
 
-| Main screen |
-|:---:|
-| ![Main screen](screenshots/main_screen.png) |
+| Main screen | AOD / Lyrics-only | Player widget on home screen | Widget pin |
+|:---:|:---:|:---:|:---:|
+| ![Main screen](screenshots/main_screen.png) | ![AOD / Lyrics-only](screenshots/aod_screen.png) | ![Player widget on home screen](screenshots/widget_home.png) | ![Widget pin](screenshots/widget_pin_dialog.png) |
 
 ## Build
 
