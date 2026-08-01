@@ -1,10 +1,12 @@
 package com.nothing.lyricwidget
 
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -108,6 +110,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -120,6 +123,7 @@ import com.nothing.lyricwidget.service.MusicNotificationListenerService
 import com.nothing.lyricwidget.service.GlyphSongController
 import com.nothing.lyricwidget.utils.LyricRepository
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlinx.coroutines.isActive
 
@@ -370,7 +374,15 @@ private fun MainScreen(
     onPlayPause: () -> Unit,
     onNext: () -> Unit
 ) {
-    var volumePreview by remember { mutableStateOf(0.48f) }
+    // The slider was previously purely cosmetic — it moved a local Compose variable that was
+    // never connected to anything, so dragging it never changed the phone's actual volume.
+    // Wire it to the real STREAM_MUSIC volume so it reflects and controls real device volume.
+    val context = LocalContext.current
+    val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
+    var volumePreview by remember {
+        mutableStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVolume)
+    }
     var showSettings by remember { mutableStateOf(false) }
     val discShape = CircleShape
 
@@ -531,7 +543,16 @@ private fun MainScreen(
 
             Row(modifier = Modifier.fillMaxWidth().padding(top = 28.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.AutoMirrored.Filled.VolumeDown, contentDescription = "Volume down", tint = Color.White, modifier = Modifier.size(18.dp))
-                Slider(value = volumePreview, onValueChange = { volumePreview = it }, modifier = Modifier.weight(1f).padding(horizontal = 10.dp), colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = Color(0xFFD82132), activeTrackColor = Color(0xFFD82132), inactiveTrackColor = Color(0xFF3A3B3E)))
+                Slider(
+                    value = volumePreview,
+                    onValueChange = { newValue ->
+                        volumePreview = newValue
+                        val targetVolume = (newValue * maxVolume).roundToInt().coerceIn(0, maxVolume)
+                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, targetVolume, 0)
+                    },
+                    modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
+                    colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = Color(0xFFD82132), activeTrackColor = Color(0xFFD82132), inactiveTrackColor = Color(0xFF3A3B3E))
+                )
                 Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Volume up", tint = Color.White, modifier = Modifier.size(18.dp))
             }
 

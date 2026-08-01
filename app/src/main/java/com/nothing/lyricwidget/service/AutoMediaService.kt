@@ -10,6 +10,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.media3.common.AudioAttributes
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata as Media3Metadata
 import androidx.media3.common.PlaybackException
@@ -39,8 +40,47 @@ class AutoMediaService : MediaLibraryService() {
     @Volatile private var lastArtworkData: ByteArray? = null
     @Volatile private var lastLyricLine: String = ""
     @Volatile private var lastAlbum: String = ""
+    @Volatile private var lastIsPlaying: Boolean = false
     private val silentUri: Uri by lazy {
         Uri.parse("android.resource://$packageName/${R.raw.silent}")
+    }
+
+    /**
+     * The decoy ExoPlayer only ever plays a silent local file, so by default Android Auto's
+     * transport buttons would just toggle/seek that silent playback instead of the real music
+     * app — which is exactly why Play/Pause got stuck and Next never showed up (a single-item
+     * playlist has no "next" to seek to). This wrapper reports those commands as always
+     * available and forwards the actual taps to whatever app MusicNotificationListenerService is
+     * currently tracking (Spotify, YT Music, etc.), instead of touching the decoy player.
+     */
+    private inner class RemoteControlPlayer(player: Player) : ForwardingPlayer(player) {
+        override fun getAvailableCommands(): Player.Commands {
+            return super.getAvailableCommands().buildUpon()
+                .add(Player.COMMAND_PLAY_PAUSE)
+                .add(Player.COMMAND_SEEK_TO_NEXT)
+                .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                .add(Player.COMMAND_SEEK_TO_PREVIOUS)
+                .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                .build()
+        }
+
+        override fun isCommandAvailable(command: Int): Boolean {
+            return when (command) {
+                Player.COMMAND_PLAY_PAUSE,
+                Player.COMMAND_SEEK_TO_NEXT,
+                Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM,
+                Player.COMMAND_SEEK_TO_PREVIOUS,
+                Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> true
+                else -> super.isCommandAvailable(command)
+            }
+        }
+
+        override fun play() = MusicNotificationListenerService.play()
+        override fun pause() = MusicNotificationListenerService.pause()
+        override fun seekToNext() = MusicNotificationListenerService.skipToNext()
+        override fun seekToNextMediaItem() = MusicNotificationListenerService.skipToNext()
+        override fun seekToPrevious() = MusicNotificationListenerService.skipToPrevious()
+        override fun seekToPreviousMediaItem() = MusicNotificationListenerService.skipToPrevious()
     }
 
     override fun onCreate() {
@@ -55,6 +95,7 @@ class AutoMediaService : MediaLibraryService() {
             .setAudioAttributes(AudioAttributes.DEFAULT, /* handleAudioFocus= */ false)
             .build().also {
                 it.playWhenReady = true
+                it.repeatMode = Player.REPEAT_MODE_ONE
                 it.addListener(object : Player.Listener {
                     override fun onPlayerError(error: PlaybackException) {
                         Log.e("AutoMediaService", "Player error: ${error.errorCode}")
@@ -71,7 +112,7 @@ class AutoMediaService : MediaLibraryService() {
 
         mediaLibrarySession = MediaLibrarySession.Builder(
             this,
-            backingPlayer,
+            RemoteControlPlayer(backingPlayer),
             object : MediaLibrarySession.Callback {
                 override fun onGetLibraryRoot(
                     session: MediaLibrarySession,
@@ -100,7 +141,8 @@ class AutoMediaService : MediaLibraryService() {
                 title = LyricRepository.currentTrack,
                 artist = LyricRepository.currentArtist,
                 album = LyricRepository.currentAlbum,
-                artworkData = null
+                artworkData = null,
+                isPlaying = LyricRepository.isPlaying
             )
         }
     }
@@ -119,10 +161,11 @@ class AutoMediaService : MediaLibraryService() {
         title: String,
         artist: String,
         album: String,
-        artworkData: ByteArray?
+        artworkData: ByteArray?,
+        isPlaying: Boolean = lastIsPlaying
     ) {
         if (Looper.myLooper() != Looper.getMainLooper()) {
-            mainHandler.post { publishSnapshot(title, artist, album, artworkData) }
+            mainHandler.post { publishSnapshot(title, artist, album, artworkData, isPlaying) }
             return
         }
 
@@ -131,6 +174,10 @@ class AutoMediaService : MediaLibraryService() {
         lastArtist = artist
         if (artworkData != null) lastArtworkData = artworkData
         if (trackChanged) lastLyricLine = ""
+        lastIsPlaying = isPlaying
+        // Keep the decoy's own playback state mirroring the real app's, so Android Auto's
+        // Play/Pause icon and toggle logic (which reads *this* player's state) stay correct.
+        backingPlayer.playWhenReady = isPlaying
 
         renderCurrentItem(album)
     }
@@ -205,12 +252,14 @@ class AutoMediaService : MediaLibraryService() {
                 if (title.isBlank()) return
                 val artwork = metadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
                     ?: metadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
+                val isPlaying = controller.playbackState?.state == android.media.session.PlaybackState.STATE_PLAYING
 
                 activeService?.publishSnapshot(
                     title = title,
                     artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST).orEmpty(),
                     album = metadata.getString(MediaMetadata.METADATA_KEY_ALBUM).orEmpty(),
-                    artworkData = artwork?.toJpeg()
+                    artworkData = artwork?.toJpeg(),
+                    isPlaying = isPlaying
                 )
             } catch (e: IllegalStateException) {
                 // Controller's session died between the caller checking it and us reading it.
