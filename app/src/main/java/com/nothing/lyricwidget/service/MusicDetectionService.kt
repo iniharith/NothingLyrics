@@ -14,6 +14,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import android.view.Choreographer
 import com.nothing.lyricwidget.service.AutoMediaService
 import com.nothing.lyricwidget.utils.LyricRepository
 import com.nothing.lyricwidget.widget.NothingLyricWidget
@@ -37,6 +38,34 @@ class MusicDetectionService : Service() {
 
     private lateinit var handler: Handler
     private var pollRunnable: Runnable? = null
+    private var frameActive = false
+
+    // Drives the widget's spinning disc at a smooth 60fps while playing (and the 2px/s OLED
+    // burn-in drift of the transport buttons) while any player widget is on the home screen.
+    private val frameCallback: Choreographer.FrameCallback = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            if (!frameActive) return
+            try {
+                val hasWidgets = NothingLyricWidget.pushPlayerFrame(applicationContext)
+                if (!hasWidgets) {
+                    frameActive = false
+                    return
+                }
+                if (LyricRepository.isPlaying) {
+                    Choreographer.getInstance().postFrameCallback(this)
+                } else {
+                    handler.postDelayed(frameKick, 250)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Widget frame error: ${e.message}")
+                frameActive = false
+            }
+        }
+    }
+
+    private val frameKick: Runnable = Runnable {
+        if (frameActive) Choreographer.getInstance().postFrameCallback(frameCallback)
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -54,6 +83,7 @@ class MusicDetectionService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        frameActive = false
         pollRunnable?.let { handler.removeCallbacks(it) }
     }
 
@@ -93,6 +123,10 @@ class MusicDetectionService : Service() {
                     if (changed) {
                         NothingLyricWidget.updateAllWidgets(applicationContext)
                     }
+                }
+                if (NothingLyricWidget.hasPlayerWidgets(applicationContext) && !frameActive) {
+                    frameActive = true
+                    Choreographer.getInstance().postFrameCallback(frameCallback)
                 }
                 handler.postDelayed(this, 500)
             }

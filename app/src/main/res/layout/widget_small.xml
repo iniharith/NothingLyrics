@@ -34,7 +34,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Play music to see lyrics"
-        android:textColor="#FFFF3B30"
+        android:textColor="#FFFFFFFF"
         android:textSize="15sp"
         android:textStyle="bold"
         android:maxLines="3"
