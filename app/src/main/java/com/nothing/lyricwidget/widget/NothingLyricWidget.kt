@@ -11,7 +11,6 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
 import android.os.Bundle
-import android.os.SystemClock
 import android.widget.RemoteViews
 import com.nothing.lyricwidget.MainActivity
 import com.nothing.lyricwidget.R
@@ -60,20 +59,10 @@ open class NothingLyricWidget : AppWidgetProvider() {
 
         // Home UI spins 360 degrees every 8 seconds -> 45 deg/s -> 0.75 deg per 60fps frame.
         private const val DISC_DEG_PER_FRAME = 0.75f
-        // OLED burn-in dodge: transport buttons drift 2 px every second along a small square path.
-        private const val DRIFT_STEP_PX = 2f
-        private const val DRIFT_STEPS_PER_EDGE = 4
-        private const val DRIFT_PERIOD_MS = 1000L
-
         private var discRotation = 0f
-        private var driftX = 0f
-        private var driftY = 0f
-        private var driftDir = 0
-        private var driftSteps = 0
-        private var lastDriftTime = 0L
 
         // Per-widget cache of the last fully-built RemoteViews, keyed by content hash so the
-        // per-frame pusher can clone it (adding only rotation/drift actions) instead of
+        // per-frame pusher can clone it (adding only rotation actions) instead of
         // re-parceling the disc bitmap and all text at 60fps.
         private val playerViewsCache = HashMap<Int, Pair<String, RemoteViews>>()
 
@@ -92,16 +81,10 @@ open class NothingLyricWidget : AppWidgetProvider() {
             val ids = manager.getAppWidgetIds(ComponentName(context, NothingPlayerWidget::class.java))
             if (ids.isEmpty()) return false
 
-            val now = SystemClock.uptimeMillis()
             var pushed = false
 
             if (LyricRepository.isPlaying) {
                 discRotation = (discRotation + DISC_DEG_PER_FRAME) % 360f
-                pushed = true
-            }
-            if (now - lastDriftTime >= DRIFT_PERIOD_MS) {
-                lastDriftTime = now
-                stepDrift()
                 pushed = true
             }
             if (!pushed) return true
@@ -247,12 +230,6 @@ open class NothingLyricWidget : AppWidgetProvider() {
 
         private fun applyFrameActions(views: RemoteViews) {
             views.setFloat(R.id.widget_player_disc, "setRotation", discRotation)
-            views.setFloat(R.id.widget_player_prev, "setTranslationX", driftX)
-            views.setFloat(R.id.widget_player_prev, "setTranslationY", driftY)
-            views.setFloat(R.id.widget_player_play_pause, "setTranslationX", driftX)
-            views.setFloat(R.id.widget_player_play_pause, "setTranslationY", driftY)
-            views.setFloat(R.id.widget_player_next, "setTranslationX", driftX)
-            views.setFloat(R.id.widget_player_next, "setTranslationY", driftY)
         }
 
         /** Picks the layout that fits the launcher-provided cell size (1x4 strip / 2-row compact / big). */
@@ -270,20 +247,6 @@ open class NothingLyricWidget : AppWidgetProvider() {
             return "${LyricRepository.currentTrack}|${LyricRepository.currentArtist}|" +
                 "${LyricRepository.currentLyricIndex}|${LyricRepository.isPlaying}|" +
                 "${LyricRepository.lyricLines.size}|${LyricRepository.currentAlbumArt?.hashCode()}"
-        }
-
-        private fun stepDrift() {
-            when (driftDir) {
-                0 -> driftX += DRIFT_STEP_PX
-                1 -> driftY += DRIFT_STEP_PX
-                2 -> driftX -= DRIFT_STEP_PX
-                3 -> driftY -= DRIFT_STEP_PX
-            }
-            driftSteps++
-            if (driftSteps >= DRIFT_STEPS_PER_EDGE) {
-                driftSteps = 0
-                driftDir = (driftDir + 1) % 4
-            }
         }
 
         private fun controlPendingIntent(context: Context, control: String): PendingIntent {

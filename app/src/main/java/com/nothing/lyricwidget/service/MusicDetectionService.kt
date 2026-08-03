@@ -40,8 +40,7 @@ class MusicDetectionService : Service() {
     private var pollRunnable: Runnable? = null
     private var frameActive = false
 
-    // Drives the widget's spinning disc at a smooth 60fps while playing (and the 2px/s OLED
-    // burn-in drift of the transport buttons) while any player widget is on the home screen.
+    // Drives the home-screen widget's spinning disc at a smooth 60fps while playing.
     private val frameCallback: Choreographer.FrameCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
             if (!frameActive) return

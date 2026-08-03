@@ -85,7 +85,7 @@
 
         <ImageButton
             android:id="@+id/widget_player_play_pause"
-            android:layout_width="36dp"
+            android:layout_width="76dp"
             android:layout_height="36dp"
             android:layout_marginStart="6dp"
             android:layout_marginEnd="6dp"
