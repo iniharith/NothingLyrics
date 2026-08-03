@@ -66,13 +66,24 @@
         </LinearLayout>
     </LinearLayout>
 
+    <ProgressBar
+        android:id="@+id/widget_player_progress"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginTop="12dp"
+        android:indeterminate="false"
+        android:max="10000"
+        android:progress="0"
+        android:progressDrawable="@drawable/widget_progress" />
+
     <!-- Spacer -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1" />
 
-    <!-- Transport row: prev / play-pause / next -->
+    <!-- Media transport: previous / play-pause / next -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

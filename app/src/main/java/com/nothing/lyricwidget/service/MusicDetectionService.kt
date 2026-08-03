@@ -74,6 +74,7 @@ class MusicDetectionService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
         startPolling()
+        NothingLyricWidget.updateAllWidgets(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

@@ -10,19 +10,27 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
+import android.os.Build
 import android.os.Bundle
 import android.widget.RemoteViews
 import com.nothing.lyricwidget.MainActivity
 import com.nothing.lyricwidget.R
+import com.nothing.lyricwidget.service.MusicDetectionService
 import com.nothing.lyricwidget.service.MusicNotificationListenerService
 import com.nothing.lyricwidget.utils.LyricRepository
 import kotlin.math.roundToInt
 
 open class NothingLyricWidget : AppWidgetProvider() {
 
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        ensureDetectionService(context)
+    }
+
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        ensureDetectionService(context)
         for (appWidgetId in appWidgetIds) {
-            updateWidget(context, appWidgetManager, appWidgetId, this::class.java)
+            updateWidget(context, appWidgetManager, appWidgetId)
         }
     }
 
@@ -32,7 +40,7 @@ open class NothingLyricWidget : AppWidgetProvider() {
         appWidgetId: Int,
         newOptions: Bundle?
     ) {
-        updateWidget(context, appWidgetManager, appWidgetId, this::class.java)
+        updateWidget(context, appWidgetManager, appWidgetId)
         super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
     }
 
@@ -59,6 +67,7 @@ open class NothingLyricWidget : AppWidgetProvider() {
 
         // Home UI spins 360 degrees every 8 seconds -> 45 deg/s -> 0.75 deg per 60fps frame.
         private const val DISC_DEG_PER_FRAME = 0.75f
+        private const val PROGRESS_MAX = 10_000
         private var discRotation = 0f
 
         // Per-widget cache of the last fully-built RemoteViews, keyed by content hash so the
@@ -67,9 +76,8 @@ open class NothingLyricWidget : AppWidgetProvider() {
         private val playerViewsCache = HashMap<Int, Pair<String, RemoteViews>>()
 
         fun hasPlayerWidgets(context: Context): Boolean {
-            return AppWidgetManager.getInstance(context)
-                .getAppWidgetIds(ComponentName(context, NothingPlayerWidget::class.java))
-                .isNotEmpty()
+            val manager = AppWidgetManager.getInstance(context)
+            return playerWidgetIds(context, manager).isNotEmpty()
         }
 
         /**
@@ -78,7 +86,7 @@ open class NothingLyricWidget : AppWidgetProvider() {
          */
         fun pushPlayerFrame(context: Context): Boolean {
             val manager = AppWidgetManager.getInstance(context)
-            val ids = manager.getAppWidgetIds(ComponentName(context, NothingPlayerWidget::class.java))
+            val ids = playerWidgetIds(context, manager)
             if (ids.isEmpty()) return false
 
             var pushed = false
@@ -111,60 +119,33 @@ open class NothingLyricWidget : AppWidgetProvider() {
         private fun updateAllForProvider(context: Context, providerClass: Class<*>) {
             val manager = AppWidgetManager.getInstance(context)
             for (appWidgetId in manager.getAppWidgetIds(ComponentName(context, providerClass))) {
-                updateWidget(context, manager, appWidgetId, providerClass)
+                updateWidget(context, manager, appWidgetId)
             }
         }
 
         fun updateWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
-            appWidgetId: Int,
-            providerClass: Class<*>
-        ) {
-            if (providerClass == NothingPlayerWidget::class.java) {
-                updatePlayerWidget(context, appWidgetManager, appWidgetId)
-            } else {
-                updateSmallWidget(context, appWidgetManager, appWidgetId)
-            }
-        }
-
-        private fun updateSmallWidget(
-            context: Context,
-            appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
-            val views = RemoteViews(context.packageName, R.layout.widget_small)
+            updatePlayerWidget(context, appWidgetManager, appWidgetId)
+        }
 
-            val openIntent = Intent(context, MainActivity::class.java)
-            val openPendingIntent = PendingIntent.getActivity(
-                context, 0, openIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_title, openPendingIntent)
+        private fun playerWidgetIds(context: Context, manager: AppWidgetManager): IntArray {
+            return manager.getAppWidgetIds(ComponentName(context, NothingLyricWidget::class.java)) +
+                manager.getAppWidgetIds(ComponentName(context, NothingPlayerWidget::class.java))
+        }
 
-            val index = LyricRepository.currentLyricIndex
-
-            if (LyricRepository.currentTrack.isBlank()) {
-                views.setTextViewText(R.id.widget_title, "Nothing Lyrics")
-                views.setTextViewText(R.id.widget_artist, "Open music player first")
-                views.setTextViewText(R.id.widget_lyric_line1, "Waiting for music...")
-                views.setTextViewText(R.id.widget_lyric_line2, "")
-            } else {
-                views.setTextViewText(R.id.widget_title, LyricRepository.currentTrack)
-                views.setTextViewText(R.id.widget_artist, LyricRepository.currentArtist)
-
-                if (LyricRepository.lyricLines.isEmpty()) {
-                    views.setTextViewText(R.id.widget_lyric_line1, "Fetching lyrics...")
-                    views.setTextViewText(R.id.widget_lyric_line2, "Connecting to LRCLIB")
+        private fun ensureDetectionService(context: Context) {
+            try {
+                val intent = Intent(context, MusicDetectionService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
                 } else {
-                    val currentLine = LyricRepository.getLyricAt(index)
-                    val displayCurrent = if (currentLine.isBlank()) "..." else currentLine
-                    views.setTextViewText(R.id.widget_lyric_line1, displayCurrent)
-                    views.setTextViewText(R.id.widget_lyric_line2, LyricRepository.getLyricAt(index + 1))
+                    context.startService(intent)
                 }
+            } catch (_: Exception) {
             }
-
-            appWidgetManager.updateAppWidget(appWidgetId, views)
         }
 
         private fun updatePlayerWidget(
@@ -196,7 +177,10 @@ open class NothingLyricWidget : AppWidgetProvider() {
             val artist = LyricRepository.currentArtist
 
             // Spinning vinyl disc drawn exactly like the home screen vinyl (see buildDiscBitmap).
-            views.setImageViewBitmap(R.id.widget_player_disc, buildDiscBitmap(LyricRepository.currentAlbumArt))
+            views.setImageViewBitmap(
+                R.id.widget_player_disc,
+                buildDiscBitmap(LyricRepository.currentAlbumArt, artist, LyricRepository.currentAlbum)
+            )
             views.setOnClickPendingIntent(R.id.widget_player_disc, openPendingIntent)
 
             views.setTextViewText(R.id.widget_title, track.ifBlank { "Nothing Lyrics" })
@@ -230,6 +214,14 @@ open class NothingLyricWidget : AppWidgetProvider() {
 
         private fun applyFrameActions(views: RemoteViews) {
             views.setFloat(R.id.widget_player_disc, "setRotation", discRotation)
+            val duration = LyricRepository.getDurationMs()
+            val position = LyricRepository.getPlaybackPositionMs().coerceAtLeast(0L)
+            val progress = if (duration > 0L) {
+                ((position.coerceAtMost(duration) * PROGRESS_MAX) / duration).toInt()
+            } else {
+                0
+            }
+            views.setProgressBar(R.id.widget_player_progress, PROGRESS_MAX, progress, false)
         }
 
         /** Picks the layout that fits the launcher-provided cell size (1x4 strip / 2-row compact / big). */
@@ -245,6 +237,7 @@ open class NothingLyricWidget : AppWidgetProvider() {
 
         private fun contentKey(): String {
             return "${LyricRepository.currentTrack}|${LyricRepository.currentArtist}|" +
+                "${LyricRepository.currentAlbum}|" +
                 "${LyricRepository.currentLyricIndex}|${LyricRepository.isPlaying}|" +
                 "${LyricRepository.lyricLines.size}|${LyricRepository.currentAlbumArt?.hashCode()}"
         }
@@ -265,7 +258,7 @@ open class NothingLyricWidget : AppWidgetProvider() {
          * #1B1C1E body, #38393B ring, #3A3B3E diagonal guide lines, album art at 119/365 of the
          * disc diameter with a #535457 border, and the black center dot with white ring.
          */
-        private fun buildDiscBitmap(artwork: Bitmap?): Bitmap {
+        private fun buildDiscBitmap(artwork: Bitmap?, artist: String, album: String): Bitmap {
             val size = 240
             val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
@@ -290,6 +283,34 @@ open class NothingLyricWidget : AppWidgetProvider() {
             val gapEnd = size * 0.61f
             canvas.drawLine(inset, size - inset, gapStart, size - gapStart, linePaint)
             canvas.drawLine(gapEnd, size - gapEnd, size - inset, inset, linePaint)
+
+            // Match the two -45 degree labels printed on the home-screen disc.
+            val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = 0xFFD7D7D7.toInt()
+                textSize = size * 10f / 365f
+                textAlign = Paint.Align.CENTER
+            }
+            fun drawLabel(text: String, x: Float, y: Float) {
+                val saveCount = canvas.save()
+                canvas.rotate(-45f, x, y)
+                canvas.drawText(
+                    text,
+                    x,
+                    y - (labelPaint.ascent() + labelPaint.descent()) / 2f,
+                    labelPaint
+                )
+                canvas.restoreToCount(saveCount)
+            }
+            drawLabel(
+                artist.ifBlank { "UNKNOWN ARTIST" }.take(18).uppercase(),
+                size * 102.5f / 365f,
+                size * 264f / 365f
+            )
+            drawLabel(
+                album.ifBlank { "UNKNOWN ALBUM" }.take(16).uppercase(),
+                size * 262.5f / 365f,
+                size * 101f / 365f
+            )
 
             // Album art: 119/365 of the disc diameter, same ratio as the home screen.
             val artSize = (size * 119f / 365f).roundToInt()
