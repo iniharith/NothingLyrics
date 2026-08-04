@@ -181,7 +181,7 @@ open class NothingLyricWidget : AppWidgetProvider() {
                 R.id.widget_player_disc,
                 buildDiscBitmap(LyricRepository.currentAlbumArt, artist, LyricRepository.currentAlbum)
             )
-            views.setOnClickPendingIntent(R.id.widget_player_disc, openPendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_player_root, openPendingIntent)
 
             views.setTextViewText(R.id.widget_title, track.ifBlank { "Nothing Lyrics" })
             views.setTextViewText(R.id.widget_lyric_line1, if (track.isBlank()) {
@@ -200,11 +200,14 @@ open class NothingLyricWidget : AppWidgetProvider() {
                 R.id.widget_player_play_pause,
                 if (isPlaying) R.drawable.ic_widget_pause else R.drawable.ic_widget_play
             )
-            views.setOnClickPendingIntent(R.id.widget_player_prev, controlPendingIntent(context, CONTROL_PREV))
-            views.setOnClickPendingIntent(
-                R.id.widget_player_play_pause,
-                controlPendingIntent(context, if (isPlaying) CONTROL_PAUSE else CONTROL_PLAY)
+            val playPausePendingIntent = controlPendingIntent(
+                context,
+                if (isPlaying) CONTROL_PAUSE else CONTROL_PLAY
             )
+            views.setOnClickPendingIntent(R.id.widget_player_prev, controlPendingIntent(context, CONTROL_PREV))
+            views.setOnClickPendingIntent(R.id.widget_player_disc_button, playPausePendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_player_disc, playPausePendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_player_play_pause, playPausePendingIntent)
             views.setOnClickPendingIntent(R.id.widget_player_next, controlPendingIntent(context, CONTROL_NEXT))
 
             applyFrameActions(views)

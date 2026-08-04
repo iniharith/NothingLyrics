@@ -41,6 +41,7 @@ class AutoMediaService : MediaLibraryService() {
     @Volatile private var lastLyricLine: String = ""
     @Volatile private var lastAlbum: String = ""
     @Volatile private var lastIsPlaying: Boolean = false
+    private var lastRenderedSignature: String = ""
     private val silentUri: Uri by lazy {
         Uri.parse("android.resource://$packageName/${R.raw.silent}")
     }
@@ -226,6 +227,17 @@ class AutoMediaService : MediaLibraryService() {
                 if (nextLine.isNotBlank()) append("\n").append(nextLine)
                 append("\n— ").append(lastTitle).append(" · ").append(lastArtist)
             }
+
+            // Android Auto (and the system status bar, which reads from the same session)
+            // rebuilds its Now Playing view whenever the item is replaced. We used to call
+            // replaceMediaItem() on every 300-500ms poll tick even when nothing on screen would
+            // actually change, which spammed AA with redundant updates and could make it stall
+            // or skip rendering the newer lyric text. Skip the rebuild entirely when the visible
+            // content is identical to what's already published.
+            val signature = "$displayTitle|$displaySubtitle|$displayDescription|" +
+                "$lastArtist|$lastTitle|${lastArtworkData?.size ?: 0}"
+            if (signature == lastRenderedSignature && currentItem != null) return
+            lastRenderedSignature = signature
 
             val mediaMetadata = Media3Metadata.Builder()
                 .setTitle(displayTitle)

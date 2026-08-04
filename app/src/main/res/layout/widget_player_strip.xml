@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Single-row strip variant (1x4): disc + title/lyric + compact transport -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_player_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="horizontal"
@@ -8,19 +9,11 @@
     android:padding="4dp"
     android:gravity="center_vertical">
 
-    <ImageView
-        android:id="@+id/widget_player_disc"
-        android:layout_width="28dp"
-        android:layout_height="28dp"
-        android:contentDescription="Album art"
-        android:scaleType="fitXY" />
-
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:orientation="vertical"
-        android:layout_marginStart="8dp">
+        android:orientation="vertical">
 
         <TextView
             android:id="@+id/widget_title"
@@ -69,16 +62,31 @@
         android:scaleType="centerInside"
         android:src="@drawable/ic_widget_prev" />
 
-    <ImageButton
-        android:id="@+id/widget_player_play_pause"
-        android:layout_width="62dp"
+    <FrameLayout
+        android:id="@+id/widget_player_disc_button"
+        android:layout_width="30dp"
         android:layout_height="30dp"
         android:layout_marginStart="4dp"
-        android:background="@drawable/widget_button_primary"
-        android:contentDescription="Play or pause"
-        android:padding="7dp"
-        android:scaleType="centerInside"
-        android:src="@drawable/ic_widget_play" />
+        android:contentDescription="Play or pause">
+
+        <ImageView
+            android:id="@+id/widget_player_disc"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="Spinning play or pause disc"
+            android:scaleType="fitXY" />
+
+        <ImageView
+            android:id="@+id/widget_player_play_pause"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_gravity="center"
+            android:background="@drawable/widget_button_primary"
+            android:contentDescription="Play or pause"
+            android:padding="3dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_widget_play" />
+    </FrameLayout>
 
     <ImageButton
         android:id="@+id/widget_player_next"
